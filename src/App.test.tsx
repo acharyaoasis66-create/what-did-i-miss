@@ -58,6 +58,22 @@ describe('conversation session flow', () => {
     expect(screen.getAllByText('Alex, please send the brief by Friday').length).toBeGreaterThan(0)
   })
 
+  it('analyzes locally without consent or sending conversation data to the server', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText(/Your name/), 'Alex')
+    fireEvent.change(screen.getByLabelText('Conversation'), {
+      target: { value: '[9:00 AM] Maya: Alex, please send the brief by Friday' },
+    })
+    await user.click(screen.getByRole('radio', { name: /Local rules/ }))
+    await user.click(screen.getByRole('button', { name: 'Analyze conversation' }))
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: /Before Gemini/ })).toBeNull()
+    expect((await screen.findAllByText('Send brief')).length).toBeGreaterThan(0)
+    expect(screen.getByText('LOCAL RULE-BASED ANALYSIS')).toBeTruthy()
+  })
+
   it('imports a valid TXT, shows the parsed preview, then analyzes it after consent', async () => {
     const user = userEvent.setup()
     const { container } = render(<App />)
@@ -251,6 +267,11 @@ describe('conversation session flow', () => {
     expect(screen.queryByText(/THE QUICK RECAP/)).toBeNull()
     expect(screen.getByText('No conversation analyzed yet.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Analyze conversation' })).toBeTruthy()
+
+    await user.click(screen.getByRole('radio', { name: /Local rules/ }))
+    await user.click(screen.getByRole('button', { name: 'Analyze conversation' }))
+    expect((await screen.findAllByText('Send brief')).length).toBeGreaterThan(0)
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
   it('shows quota failures as retryable Gemini errors and does not invent results', async () => {

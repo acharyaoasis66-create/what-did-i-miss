@@ -6,6 +6,7 @@ import {
   Sparkles, Upload, Users, X,
 } from 'lucide-react'
 import { demoConversation, demoName, demoRole } from './lib/demo'
+import { analyzeConversation } from './lib/analyzer'
 import { isRecognizableConversation, parseConversation } from './lib/parser'
 import type { AnalysisItem, AnalysisResult, FilterKey, Message } from './types'
 import './App.css'
@@ -30,6 +31,8 @@ function App() {
   const [selected, setSelected] = useState<AnalysisItem | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [analysisMode, setAnalysisMode] = useState<'local' | 'gemini'>('gemini')
+  const [resultMethod, setResultMethod] = useState<'local' | 'gemini' | null>(null)
   const [showAnalysisConsent, setShowAnalysisConsent] = useState(false)
   const [pendingAnalysis, setPendingAnalysis] = useState<{ messages: Message[]; userName: string; role: string } | null>(null)
   const [conversationName, setConversationName] = useState('Product launch · #team-project')
@@ -101,6 +104,7 @@ function App() {
     setConversationName(label)
     setMessages([])
     setResult(null)
+    setResultMethod(null)
     setSelected(null)
     setFilter('all')
     setShowSafeSkip(false)
@@ -133,8 +137,41 @@ function App() {
       setPendingAnalysis(null)
       return
     }
+    if (analysisMode === 'local') {
+      setShowAnalysisConsent(false)
+      setPendingAnalysis(null)
+      try {
+        completeAnalysis(analyzeConversation(parsed, nextName, nextRole), parsed, nextName, 'local')
+      } catch (analysisError) {
+        setError(analysisError instanceof Error
+          ? `Local analysis failed: ${analysisError.message}`
+          : 'Local analysis failed. Please retry.')
+      }
+      return
+    }
     setPendingAnalysis({ messages: parsed, userName: nextName, role: nextRole })
     setShowAnalysisConsent(true)
+  }
+
+  function completeAnalysis(data: AnalysisResult, sourceMessages: Message[], userName: string, method: 'local' | 'gemini') {
+    const openMine = data.tasks.filter((task) =>
+      task.status === 'pending' && task.owner?.toLowerCase() === userName.trim().toLowerCase()).length
+    const deadlines = data.tasks.filter((task) =>
+      task.status === 'pending' && !!task.deadline && !/^unclear\b/i.test(task.deadline)).length
+    setMessages(sourceMessages)
+    setResult({
+      ...data,
+      unreadCount: sourceMessages.length,
+      myOpenTasks: openMine,
+      deadlineCount: deadlines,
+      chatterCount: data.safeToSkip.length,
+    })
+    setResultMethod(method)
+    setFilter('all')
+    setSortByDeadline(false)
+    setSelected(null)
+    setPreviewMode(false)
+    setPendingAnalysis(null)
   }
 
   async function continueWithGemini() {
@@ -172,23 +209,7 @@ function App() {
       if (!isAnalysisResult(data, pendingAnalysis.messages)) {
         throw new Error('Gemini returned an invalid analysis. Please retry; no placeholder results were used.')
       }
-      const openMine = data.tasks.filter((task) =>
-        task.status === 'pending' && task.owner?.toLowerCase() === pendingAnalysis.userName.trim().toLowerCase()).length
-      const deadlines = data.tasks.filter((task) =>
-        task.status === 'pending' && !!task.deadline && !/^unclear\b/i.test(task.deadline)).length
-      setMessages(pendingAnalysis.messages)
-      setResult({
-        ...data,
-        unreadCount: pendingAnalysis.messages.length,
-        myOpenTasks: openMine,
-        deadlineCount: deadlines,
-        chatterCount: data.safeToSkip.length,
-      })
-      setFilter('all')
-      setSortByDeadline(false)
-      setSelected(null)
-      setPreviewMode(false)
-      setPendingAnalysis(null)
+      completeAnalysis(data, pendingAnalysis.messages, pendingAnalysis.userName, 'gemini')
     } catch (requestError) {
       if (controller.signal.reason === 'timeout') {
         setError('Gemini took too long to respond. Retry, or try a shorter conversation.')
@@ -221,6 +242,7 @@ function App() {
     setConversation('')
     setMessages([])
     setResult(null)
+    setResultMethod(null)
     setName('')
     setRole('')
     setFilter('all')
@@ -289,7 +311,7 @@ function App() {
   function selectEvidence(item: AnalysisItem) {
     setSelected(item)
     const firstId = item.sourceIds[0]
-    window.setTimeout(() => document.getElementById(`message-${firstId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
+    window.setTimeout(() => document.getElementById(`message-${firstId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }), 60)
   }
 
   function messageById(id: string) {
@@ -313,8 +335,8 @@ function App() {
         </div>
         <button className="sample-link" onClick={loadDemo}><Sparkles size={15} /> Try sample conversation <ArrowRight size={14} /></button>
         <div className="sidebar-bottom">
-          <div className="privacy-pill"><LockKeyhole size={14} /><span>Consent required</span><Check size={14} /></div>
-          <p>Conversation sent to Gemini only after you continue.</p>
+          <div className="privacy-pill"><LockKeyhole size={14} /><span>Local or Gemini</span><Check size={14} /></div>
+          <p>Choose local analysis or consent before sharing with Gemini.</p>
           <button className="nav-link clear-link" onClick={clearSession}><X size={16} /> Clear session</button>
           <div className="profile">
             <div className="avatar">{name.trim().slice(0, 1).toUpperCase() || '?'}</div>
@@ -326,7 +348,7 @@ function App() {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb"><span>What Did I Miss?</span><span className="crumb-slash">/</span><strong>{result ? conversationName : 'Your inbox'}</strong></div>
-          <div className="topbar-actions">{isDemo && <span className="demo-pill">DEMO</span>}<div className="local-badge"><span /> GEMINI AI ANALYSIS</div></div>
+          <div className="topbar-actions">{isDemo && <span className="demo-pill">DEMO</span>}<div className="local-badge"><span /> {resultMethod === 'local' ? 'LOCAL RULE-BASED ANALYSIS' : resultMethod === 'gemini' ? 'GEMINI AI ANALYSIS' : analysisMode === 'local' ? 'LOCAL RULE-BASED ANALYSIS' : 'GEMINI AI ANALYSIS'}</div></div>
         </header>
 
         <div className="content">
@@ -341,7 +363,7 @@ function App() {
 
           {(!result || previewMode) && (
             <section className="import-panel" ref={importPanelRef}>
-              <div className="import-title"><div className="import-icon"><MessageSquareText size={19} /></div><div><h2>{result ? 'Analyze another conversation' : 'No conversation analyzed yet.'}</h2><p>Paste a chat or upload a .txt export. Gemini processes it only after your consent.</p></div>{result && <button className="icon-button close-import" onClick={() => setPreviewMode(false)} aria-label="Close import"><X size={18} /></button>}</div>
+              <div className="import-title"><div className="import-icon"><MessageSquareText size={19} /></div><div><h2>{result ? 'Analyze another conversation' : 'No conversation analyzed yet.'}</h2><p>Paste a chat or upload a .txt export, then choose local rules or Gemini AI.</p></div>{result && <button className="icon-button close-import" onClick={() => setPreviewMode(false)} aria-label="Close import"><X size={18} /></button>}</div>
               <div className="profile-fields">
                 <label>Your name <span className="optional">OPTIONAL · USED TO IDENTIFY YOUR ASSIGNMENTS</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name to personalize tasks" /></label>
                 <label>Your role <span className="optional">OPTIONAL</span><input value={role} onChange={(event) => setRole(event.target.value)} placeholder="Your project responsibility" /></label>
@@ -349,10 +371,21 @@ function App() {
               <label className="input-label" htmlFor="conversation-input">Conversation</label>
               <textarea id="conversation-input" value={conversation} onChange={(event) => { replaceConversation(event.target.value, 'Pasted conversation'); setPreviewMode(true) }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void handleFile(event.dataTransfer.files[0]) }} placeholder={'Paste chat text here, or import a WhatsApp .txt export.\n\n[9:05 AM] Sam: Can you send the draft by Friday?'} />
               {conversation.trim() && <p className="preview-count" role="status">{previewMessages.length} {previewMessages.length === 1 ? 'message' : 'messages'} ready to analyze</p>}
+              <fieldset className="analysis-method">
+                <legend>Choose an analysis method</legend>
+                <label className={analysisMode === 'local' ? 'analysis-option selected' : 'analysis-option'}>
+                  <input type="radio" name="analysis-method" value="local" checked={analysisMode === 'local'} onChange={() => setAnalysisMode('local')} />
+                  <span><strong>Local rules</strong><small>Private · stays in this browser</small></span>
+                </label>
+                <label className={analysisMode === 'gemini' ? 'analysis-option selected' : 'analysis-option'}>
+                  <input type="radio" name="analysis-method" value="gemini" checked={analysisMode === 'gemini'} onChange={() => setAnalysisMode('gemini')} />
+                  <span><strong>Google Gemini</strong><small>AI analysis · requires consent</small></span>
+                </label>
+              </fieldset>
               <div className="import-controls">
                 <button className="upload-button" onClick={() => inputRef.current?.click()}><Upload size={15} /> Upload .txt</button>
                 <button className="upload-button whatsapp-import-button" onClick={openWhatsAppInstructions}><MessageSquareText size={15} /> Import from WhatsApp</button>
-                <span className="file-hint">Plain text · max 2 MB · Gemini after consent</span>
+                <span className="file-hint">Plain text · max 2 MB · {analysisMode === 'local' ? 'stays in this browser' : 'Gemini after consent'}</span>
                 <button className="analyze-button" disabled={!conversation.trim() || busy} onClick={() => runAnalysis()}>{busy ? <span className="spinner" /> : <Sparkles size={16} />}{busy ? 'Analyzing with Gemini…' : 'Analyze conversation'}<ArrowRight size={15} /></button>
               </div>
               {showWhatsAppInstructions && <div className="whatsapp-modal-backdrop">
@@ -371,7 +404,7 @@ function App() {
                   </div>
                 </section>
               </div>}
-              <div className="import-footer"><span><ShieldCheck size={14} /> Conversation and optional profile details are sent to Google Gemini only after consent.</span><button className="text-button" onClick={loadDemo}><Sparkles size={14} /> Try the sample conversation</button></div>
+              <div className="import-footer"><span><ShieldCheck size={14} /> {analysisMode === 'local' ? 'Local analysis sends no conversation or profile data anywhere.' : 'Conversation and optional profile details are sent to Google Gemini only after consent.'}</span><button className="text-button" onClick={loadDemo}><Sparkles size={14} /> Try the sample conversation</button></div>
               {error && <div className="error-message" role="alert">{error}</div>}
             </section>
           )}
@@ -425,7 +458,7 @@ function App() {
                     {result.decisions.slice(0, 3).map((decision) => <button className="decision-row" key={decision.id} onClick={() => selectEvidence({ ...decision, kind: 'decision' })}><span className="decision-dot" /><span><strong>{decision.title}</strong><small>{decision.status === 'current' ? 'Current decision' : 'Superseded'}</small></span></button>)}
                     {!result.decisions.length && <p className="right-empty">No explicit decisions found in this conversation.</p>}
                   </div>
-                  <div className="privacy-card"><div className="privacy-shield"><LockKeyhole size={17} /></div><div><strong>You choose when to share.</strong><p>Your conversation is sent to Google Gemini only after you continue. This app keeps no server-side conversation history.</p><span><span className="online-dot" /> CONSENT REQUIRED</span></div></div>
+                  <div className="privacy-card"><div className="privacy-shield"><LockKeyhole size={17} /></div><div><strong>You choose how to analyze.</strong><p>Local rules keep conversation data in this browser. Gemini sends it to Google only after you consent.</p><span><span className="online-dot" /> LOCAL OR CONSENTED GEMINI</span></div></div>
                   <div className="small-note"><Bell size={13} /> Only explicit assignments become your tasks. Mentions alone aren’t treated as action.</div>
                 </aside>
               </section>
@@ -437,7 +470,7 @@ function App() {
               </section>
             </>
           )}
-          <footer className="page-footer"><span>What Did I Miss? <span>·</span> Don’t read everything. Know everything that matters.</span><span><LockKeyhole size={12} /> Gemini processing requires your consent.</span></footer>
+          <footer className="page-footer"><span>What Did I Miss? <span>·</span> Don’t read everything. Know everything that matters.</span><span><LockKeyhole size={12} /> Gemini requires consent; local analysis stays in your browser.</span></footer>
         </div>
       </main>
       {showAnalysisConsent && <div className="whatsapp-modal-backdrop">

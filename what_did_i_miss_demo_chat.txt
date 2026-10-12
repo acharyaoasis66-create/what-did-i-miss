@@ -1,0 +1,45 @@
+09/10/2026, 09:02 - Maya: Morning team, quick check-in before we lock the product launch plan.
+09/10/2026, 09:03 - Rohan: The landing page copy is ready. I pushed the latest version to the shared folder.
+09/10/2026, 09:05 - Maya: Thanks. We need to send the launch checklist to Priya by 4 PM today.
+09/10/2026, 09:06 - Alex: I can review the checklist and send it to Priya before 3:30 PM.
+09/10/2026, 09:08 - Rohan: I’ll check the signup flow on mobile. The button looked cramped on smaller screens yesterday.
+09/10/2026, 09:10 - Maya: Decision: launch with email sign-in only. We’ll move Google sign-in to the next release.
+09/10/2026, 09:12 - Priya: Agree. Please make sure the FAQ reflects that before we publish.
+09/10/2026, 09:14 - Alex: I’ll update the FAQ after I finish the checklist.
+09/10/2026, 09:17 - Rohan: Tiny update: the office coffee machine is finally working again 😂
+09/10/2026, 09:20 - Maya: One more thing: the launch date is Friday, 16 October, assuming QA signs off.
+09/10/2026, 09:22 - Alex: I’ll send the checklist to Priya by 3:30 PM today.
+09/10/2026, 09:28 - Rohan: Mobile signup test passed on Android. I’m checking iOS now.
+09/10/2026, 09:34 - Priya: The FAQ currently says Google sign-in is available. That needs to change before launch.
+09/10/2026, 09:40 - Alex: Checklist sent to Priya. Done.
+09/10/2026, 09:42 - Maya: Great, checklist is complete. Alex, please update the FAQ by 2 PM tomorrow.
+09/10/2026, 09:44 - Alex: Understood. FAQ update by 2 PM tomorrow.
+09/10/2026, 09:48 - Rohan: iOS signup test passed too. No blockers from mobile testing.
+09/10/2026, 10:01 - Maya: QA still needs to verify password reset and the welcome email. I’ll own those checks.
+09/10/2026, 10:06 - Priya: I found one issue: the welcome email says “Your account is ready” before the verification link is clicked.
+09/10/2026, 10:08 - Maya: Good catch. I’ll fix the email wording and rerun that check by 1 PM today.
+09/10/2026, 10:12 - Rohan: Should we still launch on Thursday?
+09/10/2026, 10:14 - Maya: No, final decision: Friday, 16 October. We need the extra day for QA.
+09/10/2026, 10:16 - Priya: Updated the launch calendar to Friday, 16 October.
+09/10/2026, 10:22 - Alex: FAQ draft is updated. I’ll proofread it once more before marking it done.
+09/10/2026, 10:35 - Rohan: Lunch order? I’m getting noodles if anyone wants some.
+09/10/2026, 10:41 - Alex: FAQ update is complete, and it now says email sign-in only for launch.
+09/10/2026, 10:43 - Priya: Confirmed, I checked the FAQ. Looks correct.
+09/10/2026, 10:50 - Maya: Status: checklist sent, mobile signup tests passed, and FAQ updated. Still open: password reset QA and welcome-email fix.
+09/10/2026, 11:02 - Maya: I fixed the welcome email wording. The verification message now appears after the user clicks the link.
+09/10/2026, 11:08 - Maya: Welcome-email check passed. I’m doing the password-reset test now.
+09/10/2026, 11:19 - Maya: Password reset test passed. QA is clear from my side.
+09/10/2026, 11:24 - Rohan: Nice! I’ll post the final mobile test notes in the release doc.
+09/10/2026, 11:30 - Priya: Reminder: please don’t announce the launch publicly until the release owner confirms the final go-ahead.
+09/10/2026, 11:36 - Maya: Correct. Friday is the planned date, but public announcement waits for the release owner's go-ahead.
+09/10/2026, 11:44 - Alex: Is the FAQ task still open?
+09/10/2026, 11:45 - Priya: No, FAQ is done. I verified it after Alex's update.
+09/10/2026, 12:03 - Rohan: Final mobile test notes added to the release doc.
+09/10/2026, 12:10 - Maya: All QA checks are passing. I’ll post the release go/no-go decision tomorrow after the final review.
+09/10/2026, 12:18 - Alex: Got it. I’ll keep the checklist and FAQ marked complete.
+09/10/2026, 12:25 - Rohan: Random question: anyone know a good place for coffee near campus?
+09/10/2026, 12:31 - Priya: I added the updated launch date to the team calendar. No other changes.
+09/10/2026, 12:38 - Maya: Summary of status: checklist sent, FAQ updated, mobile tests passed, welcome email fixed, password reset passed. Waiting only for tomorrow's final go/no-go.
+09/10/2026, 12:45 - Alex: Thanks, I’ll be available if anything comes up.
+09/10/2026, 12:52 - Rohan: Same here.
+09/10/2026, 13:00 - Priya: The release doc and calendar now match: Friday, 16 October is planned, pending final go/no-go approval.

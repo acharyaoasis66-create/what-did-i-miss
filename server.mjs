@@ -169,11 +169,19 @@ export async function generateWithGemini(
   const timeoutSignal = AbortSignal.timeout(timeoutMs)
   const fetchWithTimeout = (input, init = {}) => {
     const signals = init.signal ? [init.signal, timeoutSignal] : [timeoutSignal]
-    return fetchImplementation(input, { ...init, signal: AbortSignal.any(signals) })
+    const requestInit = { ...init, signal: AbortSignal.any(signals) }
+    return fetchImplementation(input, requestInit).then((response) => {
+      if (response.status < 500 || response.status >= 600 || requestInit.signal.aborted) return response
+      return fetchImplementation(input, requestInit)
+    })
   }
   const ai = new GoogleGenAI({
     apiKey,
-    httpOptions: { timeout: timeoutMs + 2_000, retryOptions: { attempts: 1 }, fetch: fetchWithTimeout },
+    httpOptions: {
+      timeout: timeoutMs + 2_000,
+      retryOptions: { attempts: 1 },
+      fetch: fetchWithTimeout,
+    },
   })
   const interaction = await ai.interactions.create({
     model: GEMINI_MODEL,
@@ -226,7 +234,7 @@ export async function analyzePayload(payload, {
       throw new HttpError(502, 'Gemini rejected this model request. Check model availability and server SDK configuration.')
     }
     if (error?.status >= 500) {
-      throw new HttpError(502, 'Google Gemini is temporarily unavailable. Please retry shortly.')
+      throw new HttpError(502, 'Google Gemini is temporarily unavailable. It was retried once; retry later or choose Local rules to analyze without Gemini.')
     }
     if (error instanceof SyntaxError) {
       throw new HttpError(502, 'Gemini returned malformed structured analysis. Please retry.')

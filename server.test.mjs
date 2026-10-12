@@ -76,6 +76,12 @@ describe('Gemini analysis API', () => {
 
   it('aborts a stalled SDK request at the configured timeout', async () => {
     const sdkFetch = vi.fn((_request, init) => new Promise((_resolve, reject) => {
+      if (init.signal.aborted) {
+        const error = new Error('request timed out')
+        error.name = 'TimeoutError'
+        reject(error)
+        return
+      }
       init.signal.addEventListener('abort', () => {
         const error = new Error('request timed out')
         error.name = 'TimeoutError'
@@ -92,6 +98,37 @@ describe('Gemini analysis API', () => {
       10,
     )).rejects.toMatchObject({ name: 'APIConnectionTimeoutError' })
     expect(sdkFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries once when Gemini returns a transient server error', async () => {
+    const text = JSON.stringify({
+      summary: 'A concise summary',
+      conversationSummary: 'A conversation overview',
+      tasks: [],
+      completed: [],
+      decisions: [],
+      mentions: [],
+      updates: [],
+      safeToSkip: [],
+    })
+    const sdkFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { code: 503, message: 'Service unavailable', status: 'UNAVAILABLE' },
+      }), { status: 503, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'test-interaction',
+        status: 'completed',
+        output_text: text,
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    await expect(generateWithGemini(
+      [{ id: 'message-1', sender: 'Jo', timestamp: '', text: 'Hello', order: 0 }],
+      '',
+      '',
+      'unit-test-not-a-secret',
+      sdkFetch,
+    )).resolves.toBe(text)
+    expect(sdkFetch).toHaveBeenCalledTimes(2)
   })
 
   it('sends validated messages to the configured generator and derives dashboard metrics', async () => {
@@ -169,6 +206,25 @@ describe('Gemini analysis API', () => {
       })
       expect(response.status).toBe(504)
       expect((await response.json()).error).toMatch(/try a shorter conversation/)
+    })
+  })
+
+  it('explains the local option when Gemini remains temporarily unavailable', async () => {
+    await withServer({
+      apiKey: 'test',
+      generate: async () => {
+        const error = new Error('upstream unavailable')
+        error.status = 503
+        throw error
+      },
+    }, async (origin) => {
+      const response = await fetch(`${origin}/api/analyze`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: [{ id: 'message-1', sender: 'Jo', timestamp: '', text: 'Hello', order: 0 }], userName: '', role: '' }),
+      })
+      expect(response.status).toBe(502)
+      expect((await response.json()).error).toMatch(/retried once.*choose Local rules/)
     })
   })
 
